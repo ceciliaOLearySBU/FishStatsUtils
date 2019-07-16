@@ -14,8 +14,8 @@ function( input_grid, strata.limits=NULL, zone=NA, flip_around_dateline=TRUE, ..
   Area_km2_x = Data_Extrap[,'Area_km2']
   
   # Augment with strata for each extrapolation cell
-  #Tmp = cbind("BEST_LAT_DD"=Data_Extrap[,'Lat'], "BEST_LON_DD"=Data_Extrap[,'Lon'])
-   Tmp = cbind("BEST_LAT_DD"=Data_Extrap[,'Lat'])
+  Tmp = cbind("BEST_LAT_DD"=Data_Extrap[,'Lat'], "BEST_LON_DD"=Data_Extrap[,'Lon'])
+  # Tmp = cbind("BEST_LAT_DD"=Data_Extrap[,'Lat'])
   if( "Depth" %in% colnames(Data_Extrap) ){
     Tmp = cbind( Tmp, Data_Extrap[,'Depth'] )
   }
