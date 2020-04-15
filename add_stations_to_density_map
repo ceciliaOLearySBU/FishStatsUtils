@@ -1,5 +1,5 @@
 library(VAST)
-source('C:/Users/.../plot_variable_adjusted.R') #fill in this path to wherever you store the plot_variable_adjusted.R file on your computer
+source('C:/Users/.../plot_variable_with_stations.R') #fill in this path to wherever you store the plot_variable_with_stations.R file on your computer
 
 Species = c("Gadus chalcogrammus", "Gadus macrocephalus","Pleuronectes quadrituberculatus")[1] #c(pollock, Pcod,APlaice)
 
