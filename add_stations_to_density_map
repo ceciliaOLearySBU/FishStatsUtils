@@ -1,0 +1,92 @@
+library(VAST)
+source('C:/Users/.../plot_variable_adjusted.R') #fill in this path to wherever you store the plot_variable_adjusted.R file on your computer
+
+Species = c("Gadus chalcogrammus", "Gadus macrocephalus","Pleuronectes quadrituberculatus")[1] #c(pollock, Pcod,APlaice)
+
+##load your own data, extrapolation grid, and optimized model
+load(file = "C:/Users/.../Save.Rdata") #optimized model
+Data_Geostat <- readRDS(file = paste0(getwd(),"/Data_Geostat_",Species,".rds")) #data
+Extrapolation_List <-  readRDS(file = paste0(getwd(),"/Extrapolation_List.rds")) #extrapolation grid
+
+#set these to your model settings
+n_x = 200   
+Method = c("Grid", "Mesh", "Spherical_mesh")[2]
+grid_size_km = 25
+Aniso = FALSE
+fine_scale = TRUE
+Region="User"
+
+Spatial_List = FishStatsUtils::make_spatial_info( grid_size_km = grid_size_km, 
+                                                  n_x = n_x, 
+                                                  fine_scale = fine_scale, 
+                                                  Method = Method, 
+                                                  Lon_i = Data_Geostat[,'Lon'], 
+                                                  Lat_i = Data_Geostat[,'Lat'], 
+                                                  Extrapolation_List=Extrapolation_List, 
+                                                  knot_method = 'grid')
+
+####MAP SETTINGS
+Year_Set = seq(min(Data_Geostat[,'Year']),max(Data_Geostat[,'Year']))
+Years2Include = which( Year_Set %in% sort(unique(Data_Geostat[,'Year'])))
+MapDetails_List = make_map_info( "Region"= Region, "spatial_list"= Spatial_List, "Extrapolation_List"=Extrapolation_List )
+
+plot_value = "estimate"
+category_names = "singlespecies"
+Ncategories = length(category_names)
+Nyears = dim(Save$Report$D_gcy)[3]
+MapSizeRatio = c(3, 3)
+
+#function from FishStatsUtils::make_maps()
+extract_value = function( Sdreport, Report, Obj, variable_name, plot_value="estimate", n_samples ){
+  if( missing(Report) ){
+    Report = Obj$report()
+  }
+  if( is.function(plot_value) ){
+    if(missing(Obj)) stop("Must provide `Obj` for `extract_value(.)` in `plot_maps(.)` when specifying a function for argument `plot_value`")
+    Var_r = sample_variable( Sdreport=Sdreport, Obj=Obj, variable_name=variable_name, n_samples=n_samples )
+    Return = apply( Var_r, MARGIN=1:(length(dim(Var_r))-1), FUN=plot_value )
+    if( any(dim(Return)!=dim(Report[[variable_name]])) ){
+      stop("Check `extract_value(.)` in `plot_maps(.)`")
+    }
+  }else if( plot_value=="estimate" ){
+    Return = Report[[variable_name]]
+  }else stop("Check input `plot_value` in `plot_maps(.)`")
+  return( Return )
+}
+
+##extract density values
+Array_xct = log( extract_value(Sdreport=Save$Opt[["SD"]], Report=Save$Report,variable_name="D_gcy") )
+
+#set for map option 3, change based on whatever map you decide to do
+plot_code <- c("encounter_prob", "pos_catch", "ln_density", "", "", "epsilon_1", "epsilon_2",
+               "linear_predictor_1", "linear_predictor_2", "density_CV", "covariates", "total_density",
+               "covariate_effects_1", "covariate_effects_2", "omega_1", "omega_2")[3]
+
+
+#projargs <- '+proj=utm +datum=WGS84 +units=km +zone=3'
+projargs <- '+proj=natearth +lat_0=0 +units=km'
+map_list=list("PlotDF"=MapDetails_List[["PlotDF"]], "MapSizeRatio"=MapSizeRatio)
+map_list$PlotDF$Lon <- ifelse(map_list$PlotDF$Lon > 0, map_list$PlotDF$Lon, map_list$PlotDF$Lon + 360)
+
+if( all(Years2Include %in% 1:dim(Array_xct)[3]) ){
+  years_to_include = Years2Include
+}else{
+  years_to_include = 1:dim(Array_xct)[3]
+}
+
+# Plot for each year
+  Nplot = length(years_to_include)
+  for( tI in 1:Nplot){
+    if(length(dim(Array_xct))==2) Mat_xc = Array_xct[,years_to_include[tI],drop=TRUE]
+    if(length(dim(Array_xct))==3) Mat_xc = Array_xct[,,years_to_include[tI],drop=TRUE]
+    Return = Mat_xc = array( as.vector(Mat_xc), dim=c(dim(Array_xct)[1],Ncategories)) # Reformat to make sure it has same format for everything
+    
+    # Do plot
+    file_name = paste0(plot_code, ifelse(Nplot>1, paste0("--",Year_Set[years_to_include][tI]), ""), ifelse(is.function(plot_value),"-transformed","-predicted") )
+    plot_variable( Y_gt=Mat_xc, station.years = Year_Set[tI], file_name = file_name, Station_Data = Data_Geostat,
+                                map_list=map_list,
+                                #projargs=projargs,
+                                panel_labels=Year_Set[tI],
+                                ylim=mean(MapDetails_List$Ylim)+c(-0.5,0.5)*diff(MapDetails_List$Ylim),
+                                add=TRUE)
+    }
